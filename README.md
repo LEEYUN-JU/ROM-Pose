@@ -18,7 +18,7 @@ Installation
 ### Download COCO dataset from URL
 https://cocodataset.org/#download
 
-'''
+'''python
 ${POSE_ROOT}
 |-- data
 `-- |-- mpii
