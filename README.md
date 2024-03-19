@@ -12,8 +12,11 @@ https://github.com/microsoft/human-pose-estimation.pytorch
 Installation 
 ---
 1. Follow the Baseline code installation.
-2. Change Dataset code 
+2. Change Joints Dataset.py file
+3. Change lib/core/function.py
+4. Change lib/core/inference.py
 
+Dataset
 ---
 ### Download COCO dataset from URL
 https://cocodataset.org/#download
@@ -33,3 +36,4 @@ ${POSE_ROOT}
             |-- 000003072.jpg
 ```
 
+Mask image dataset using by data/makedataset.py
