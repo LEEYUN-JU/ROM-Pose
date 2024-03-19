@@ -18,7 +18,7 @@ Installation
 ### Download COCO dataset from URL
 https://cocodataset.org/#download
 
-'''python
+```bash
 ${POSE_ROOT}
 |-- data
 `-- |-- mpii
@@ -31,5 +31,5 @@ ${POSE_ROOT}
         `-- images
             |-- 000001163.jpg
             |-- 000003072.jpg
-'''
+```
 
