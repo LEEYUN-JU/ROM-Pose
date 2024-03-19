@@ -15,6 +15,7 @@ import random
 import cv2
 import numpy as np
 import torch
+import math
 from torch.utils.data import Dataset
 
 from utils.transforms import get_affine_transform
@@ -24,6 +25,7 @@ from utils.transforms import fliplr_joints
 
 logger = logging.getLogger(__name__)
 
+ran_set = 0
 
 class JointsDataset(Dataset):
     def __init__(self, cfg, root, image_set, is_train, transform=None):
@@ -50,6 +52,15 @@ class JointsDataset(Dataset):
 
         self.transform = transform
         self.db = []
+        
+        self.epo_5000 = 0.001
+        self.epo_over = 0.0001
+        self.range = 10
+        
+        print("self.epo_500", self.epo_5000) #0.001
+        print("self.epo_over", self.epo_over) #0.0001, math.exp(-14)
+        
+        self.file_list = []
 
     def _get_db(self):
         raise NotImplementedError
@@ -62,7 +73,13 @@ class JointsDataset(Dataset):
 
     def __getitem__(self, idx):
         db_rec = copy.deepcopy(self.db[idx])
-
+        global ran_set
+        
+        image_name = db_rec['image'].split("/")[-2:][1].split(".jpg")[-2]
+        train_val_name = db_rec['image'].split("/")[-2:][0]
+        
+        mask_image_file = "../../tf/data/" + train_val_name + "/" + image_name + "_" + db_rec['mask_image'] + ".jpg"
+        
         image_file = db_rec['image']
         filename = db_rec['filename'] if 'filename' in db_rec else ''
         imgnum = db_rec['imgnum'] if 'imgnum' in db_rec else ''
@@ -72,13 +89,52 @@ class JointsDataset(Dataset):
             data_numpy = zipreader.imread(
                 image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         else:
-            data_numpy = cv2.imread(
-                image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-
+            data_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+            
+        
         if data_numpy is None:
-            logger.error('=> fail to read {}'.format(image_file))
-            raise ValueError('Fail to read {}'.format(image_file))
+            logger.error('=> fail to read data numpy {}'.format(image_file))
+            raise ValueError('Fail to read data numpy {}'.format(image_file))
+        
+        if self.is_train:
+            if image_name + "_" + db_rec['mask_image'] + ".jpg" in self.file_list:
+                mask_numpy = cv2.imread(mask_image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+            else:
+                mask_numpy = None
+                
+        else:
+            mask_numpy = None
+        
+#         try:
+#             mask_numpy = cv2.imread(mask_image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+        
+#         except Exception as e:
+#             #logger.error('=> fail to read mask numpy {}'.format(mask_image_file))
+#             #raise ValueError('Fail to read mask numpy {}'.format(mask_image_file))
+#             mask_numpy = None
+        
+        if mask_numpy is None:           
+            mask_numpy = data_numpy.copy()
+        else:
+            # 이미지 크기 확인
+            height, width, channels = mask_numpy.shape
 
+            # 랜덤으로 5개 부분 선택
+            # num_selections = 5
+            # min_height = 192 // 30  # 이미지 높이의 1/30
+            # min_width = 259 // 30  # 이미지 너비의 1/30
+            # for _ in range(num_selections):
+            #     start_row = random.randint(0, height - min_height)
+            #     end_row = random.randint(start_row + min_height, height)
+            #     start_col = random.randint(0, width - min_width)
+            #     end_col = random.randint(start_col + min_width, width)
+            
+            # (0, 0, 0)인 부분을 이미지 B로 대체
+            result_image = np.where(mask_numpy == [0, 0, 0], data_numpy, mask_numpy)
+            
+            # 선택된 부분을 0으로 설정
+            # mask_numpy[start_row:end_row, start_col:end_col] = data_numpy[start_row:end_row, start_col:end_col]
+        
         joints = db_rec['joints_3d']
         joints_vis = db_rec['joints_3d_vis']
 
@@ -86,7 +142,7 @@ class JointsDataset(Dataset):
         s = db_rec['scale']
         score = db_rec['score'] if 'score' in db_rec else 1
         r = 0
-
+        
         if self.is_train:
             sf = self.scale_factor
             rf = self.rotation_factor
@@ -96,8 +152,9 @@ class JointsDataset(Dataset):
 
             if self.flip and random.random() <= 0.5:
                 data_numpy = data_numpy[:, ::-1, :]
-                joints, joints_vis = fliplr_joints(
-                    joints, joints_vis, data_numpy.shape[1], self.flip_pairs)
+                mask_numpy = mask_numpy[:, ::-1, :]
+                
+                joints, joints_vis = fliplr_joints(joints, joints_vis, data_numpy.shape[1], self.flip_pairs)
                 c[0] = data_numpy.shape[1] - c[0] - 1
 
         trans = get_affine_transform(c, s, r, self.image_size)
@@ -106,9 +163,16 @@ class JointsDataset(Dataset):
             trans,
             (int(self.image_size[0]), int(self.image_size[1])),
             flags=cv2.INTER_LINEAR)
+        
+        input_mask = cv2.warpAffine(
+            mask_numpy,
+            trans,
+            (int(self.image_size[0]), int(self.image_size[1])),
+            flags=cv2.INTER_LINEAR)
 
         if self.transform:
-            input = self.transform(input)
+            input = self.transform(input)            
+            input_mask = self.transform(input_mask)
 
         for i in range(self.num_joints):
             if joints_vis[i, 0] > 0.0:
@@ -118,7 +182,28 @@ class JointsDataset(Dataset):
 
         target = torch.from_numpy(target)
         target_weight = torch.from_numpy(target_weight)
+        
+        #3000, 5000, 10000
+        #500, 1000, 1000 >> 결과가 너무 안좋게 나와서 포기 / 0.015, 0.050
+        #300, 500
+        
+        if self.is_train:
+            if ran_set < 300:
+                random_mask_float = round(random.uniform(self.epo_5000, self.epo_5000*self.range), 5) #mask_image
+            if ran_set >= 300 and ran_set <= 500:
+                random_mask_float = round(random.uniform(self.epo_over, self.epo_over*self.range), 5) #mask_image
+            if ran_set > 500:
+                random_mask_float = 0.0
+                                    
+            random_numpy_float = 1 - random_mask_float
+            ran_set += 1
 
+            inputs = random_numpy_float * input + random_mask_float * input_mask            
+            input = ((inputs - inputs.min()) / (inputs.max() - inputs.min())) * 255
+        
+        else:
+            input = ((input - input.min()) / (input.max() - input.min())) * 255
+        
         meta = {
             'image': image_file,
             'filename': filename,
@@ -128,10 +213,11 @@ class JointsDataset(Dataset):
             'center': c,
             'scale': s,
             'rotation': r,
-            'score': score
+            'score': score,
+            'id':idx
         }
 
-        return input, target, target_weight, meta
+        return input, target, target_weight, meta, input_mask
 
     def select_data(self, db):
         db_selected = []
@@ -164,6 +250,8 @@ class JointsDataset(Dataset):
 
         logger.info('=> num db: {}'.format(len(db)))
         logger.info('=> num selected db: {}'.format(len(db_selected)))
+        logger.info('epo_5000: {}'.format(self.epo_5000))
+        logger.info('epo_over: {}'.format(self.epo_over))
         return db_selected
 
     def generate_target(self, joints, joints_vis):
