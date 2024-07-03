@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Sep  7 12:35:28 2022
-
-@author: labpc
-"""
-
 import json
 import numpy as np
 import math
