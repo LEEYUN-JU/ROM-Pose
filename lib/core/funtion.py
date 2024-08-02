@@ -28,7 +28,7 @@ import sys
 
 logger = logging.getLogger(__name__)
 
-# GPU를 사용할 수 있는지 확인
+# GPU available check
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def save_mask(config, output, meta, mask_info):
@@ -39,11 +39,8 @@ def save_mask(config, output, meta, mask_info):
     preds, maxvals = get_final_preds(config, output, c, s)
     
     for j in range(0, len(meta['id'])):
-        id = meta['id'][j].item()
-        #결과적으로 원본이미지에서 heat_map으로 추정된 키포인트 들이 저장됌        
+        id = meta['id'][j].item()   
         mask_info[id] = preds[j]
-        # print(id) number
-        # print(type(id)) int
         
     return mask_info     
 
@@ -53,10 +50,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch, output_dir, 
     losses = AverageMeter()
     acc = AverageMeter()
     
-    # 기록 저장하기
-    # f = open(output_dir + '/log.txt', 'a')
-    # f.write('\n------------------ validation history -------------------\n')
-    
     # switch to train mode
     model.train()    
 
@@ -64,23 +57,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch, output_dir, 
     for i, (input, target, target_weight, meta, input_mask) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-        
-        #마스크 정보를 저장하기 위한 id
-        #print("train len_train_loader", len(train_loader)) #781
-        #print(len(meta['id'])) #192
-        #print((meta))
-        #print("mask_len:", len(mask_info)) #192 * i
-        
-#         temp = cal_heat_map(input, input_mask, meta, epoch, output_dir)
-        
-#         if temp != None:
-#             input = temp          
-#         else:
-#             # 입력 데이터를 GPU로 이동
-#             input = input
-            
-        # input = input.to(torch.float32)           
-        # input = input.to(device)
         
         input = input.cuda()
         
@@ -123,8 +99,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch, output_dir, 
                       data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
             
-            # f.write('%s \n'%msg) #저장하기 위해서 추가해준 코드            
-
             writer = writer_dict['writer']
             global_steps = writer_dict['train_global_steps']
             writer.add_scalar('train_loss', losses.val, global_steps)
@@ -145,12 +119,6 @@ def validate(config, val_loader, val_dataset, model, criterion, mask_info, epoch
     losses = AverageMeter()
     acc = AverageMeter()
     
-    # 기록 저장하기
-#     f = open(output_dir + '/log.txt', 'a')
-#     f.write('\n------------------ validation history -------------------\n')
-    
-#     f_ap = open(output_dir + '/ap_log.txt', 'a')
-#     f_ap.write('\n------------------ ap history -------------------\n')
     
     # switch to evaluate mode
     model.eval()
@@ -166,17 +134,6 @@ def validate(config, val_loader, val_dataset, model, criterion, mask_info, epoch
     with torch.no_grad():
         end = time.time()
         for i, (input, target, target_weight, meta, input_mask) in enumerate(val_loader):
-            
-#             temp = cal_heat_map(input, input_mask, meta, epoch, output_dir)
-        
-#             if temp != None:
-#                 input = temp          
-#             else:
-#                 # 입력 데이터를 GPU로 이동
-#                 input = input
-    
-            # input = input.to(torch.float32)           
-            # input = input.to(device)
             
             input = input.cuda()
             
@@ -246,22 +203,15 @@ def validate(config, val_loader, val_dataset, model, criterion, mask_info, epoch
                           i, len(val_loader), batch_time=batch_time,
                           loss=losses, acc=acc)
                 logger.info(msg)
-                #f.write('%s \n'%msg) #저장하기 위해서 추가해준 코드
-
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
                 save_debug_images(config, input, meta, target, pred*4, output, prefix)
                 
         name_values, perf_indicator = val_dataset.evaluate(
             config, all_preds, output_dir, all_boxes, image_path,
             filenames, imgnums)
-        
-        #저장하기 위해서 추가해준 코드(밑에 4줄)
+       
         logger.info(name_values)
-        # f_ap.write('%s \n'%name_values)
-        # f_total = open('{}/ap_log.txt'.format(output_dir), 'a')
-        # f_total.write('\n')
-        # f_total.close()
-        
+
         _, full_arch_name = get_model_name(config)
         if isinstance(name_values, list):
             for name_value in name_values:
@@ -280,11 +230,7 @@ def validate(config, val_loader, val_dataset, model, criterion, mask_info, epoch
             else:
                 writer.add_scalars('valid', dict(name_values), global_steps)
             writer_dict['valid_global_steps'] = global_steps + 1
-    
-    #저장하기 위해서 추가해준 코드(밑에 3줄)
-    # f.write('train_loss : {:.4f} \t train_acc : {:.3f}'.format(losses.avg, acc.avg))
-    # f.close()
-    # f_ap.close()
+
     logger.info('train_loss : {:.4f} \t train_acc : {:.3f}'.format(losses.avg, acc.avg))
 
     return perf_indicator
@@ -296,15 +242,7 @@ def _print_name_value(name_value, full_arch_name, output_dir):
     values = name_value.values()
     num_values = len(name_value)
     
-    ########################################
-    #w의 경우 새로 시작해서 쓰기, a의 경우 기존의 내용에 추가로 적기
-    # f = open(output_dir + '/log.txt', 'a')
-    # f.write('\n------------------ ap info -------------------\n')
-    # f.write('%s'%names)   
-    # f.write('\n%s'%values)          
-    # f.close()
-    ########################################
-        
+
     logger.info(
         '| Arch ' +
         ' '.join(['| {}'.format(name) for name in names]) +
