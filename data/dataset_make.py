@@ -25,7 +25,7 @@ def bring_json(base_path, coordinate):
     return coordinate
 
 
-############################## mask 이미지 그리기 ###############################
+############################## mask image drawing ###############################
 def draw_masking():    
     coco = COCO('../../../../home/yju/tf/data/coco/annotations/person_keypoints_train2017.json')
     img_dir = '../../../../home/yju/tf/data/coco/images/train2017'
@@ -140,7 +140,7 @@ def create_answer(coordinate_anno, base_path):
     
     for p in range(0, len(train_images)):
     #for p in range(0, 5):   
-        # 두 이미지를 합치는 코드
+       
         try:
             img_input = plt.imread("D:/GAN/train/train2017/%s"%train_images[p])
             img_target = plt.imread("D:/GAN/train/train2017_mask/%s"%train_images[p])        
@@ -149,22 +149,7 @@ def create_answer(coordinate_anno, base_path):
             
             test = img_input | img_target
             
-            #temp = img_target.sum(axis=2)
-        
-            # multiple_result = img_input * temp
-        
-            # fake_result = multiple_result - temp
-        
-            # test = (fake_result - img_input) + (fake_result * multiple_result)
-        
-            # for i in range(len(test)):
-            #     for j in range(len(test[i])):
-            #         if (test[i][j]) != 0:
-            #             test[i][j] = 255
-            
             plt.imsave("D:/GAN/train/train2017_comb/%s"%train_images[p], test, cmap='gray')
-            #plt.imsave("D:/GAN/train/valB/%s"%train_images[p], test, cmap='gray')
-            #print("%s"%train_images[p])
         
         except:
             print("no images")
