@@ -21,6 +21,9 @@ Dataset
 ### Download COCO dataset from URL
 https://cocodataset.org/#download
 
+### Whole COCO dataset download link
+https://drive.google.com/drive/folders/1qlget_ijZDOxBMrrYR8Tc5yGUdZE67bk?usp=drive_link
+
 ```bash
 ${POSE_ROOT}
 |-- data
