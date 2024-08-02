@@ -2,9 +2,10 @@
 
 Enviroment
 ---
-Python 3.9.7
-CUDA 11.1 relese
-NVIDIA GPU A5000 used
+Computing infrastructure  
+Python 3.9.7    
+CUDA 11.1 relese  
+NVIDIA GPU A5000 used  
 
 ### Download backbone code from URL
 https://github.com/microsoft/human-pose-estimation.pytorch
