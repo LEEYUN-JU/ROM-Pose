@@ -115,25 +115,6 @@ class JointsDataset(Dataset):
         
         if mask_numpy is None:           
             mask_numpy = data_numpy.copy()
-        else:
-            # 이미지 크기 확인
-            height, width, channels = mask_numpy.shape
-
-            # 랜덤으로 5개 부분 선택
-            # num_selections = 5
-            # min_height = 192 // 30  # 이미지 높이의 1/30
-            # min_width = 259 // 30  # 이미지 너비의 1/30
-            # for _ in range(num_selections):
-            #     start_row = random.randint(0, height - min_height)
-            #     end_row = random.randint(start_row + min_height, height)
-            #     start_col = random.randint(0, width - min_width)
-            #     end_col = random.randint(start_col + min_width, width)
-            
-            # (0, 0, 0)인 부분을 이미지 B로 대체
-            result_image = np.where(mask_numpy == [0, 0, 0], data_numpy, mask_numpy)
-            
-            # 선택된 부분을 0으로 설정
-            # mask_numpy[start_row:end_row, start_col:end_col] = data_numpy[start_row:end_row, start_col:end_col]
         
         joints = db_rec['joints_3d']
         joints_vis = db_rec['joints_3d_vis']
@@ -182,10 +163,6 @@ class JointsDataset(Dataset):
 
         target = torch.from_numpy(target)
         target_weight = torch.from_numpy(target_weight)
-        
-        #3000, 5000, 10000
-        #500, 1000, 1000 >> 결과가 너무 안좋게 나와서 포기 / 0.015, 0.050
-        #300, 500
         
         if self.is_train:
             if ran_set < 300:
