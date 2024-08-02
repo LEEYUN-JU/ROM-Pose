@@ -18,7 +18,10 @@ Installation
 4. Change lib/core/inference.py
 
 Dataset
----
+---  
+If you don't need to use other dataset, just download below link.  
+Other preprocessing is not requried.  
+
 ### Download COCO dataset from URL
 https://cocodataset.org/#download
 
