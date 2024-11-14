@@ -101,7 +101,9 @@ def cal_heat_map(input, input_mask, meta, epoch, output_dir):
     if epoch < 80 and epoch >= 50:              
         image_ratio = 0.8; mask_ratio = 0.2;
 
-    inputs = image_ratio * input + mask_ratio * input_mask
+    epslion = mask_ratio
+
+    inputs = input * (1-epslion) + input_mask * epslion
 
     inputs = ((inputs - inputs.min()) / (inputs.max() - inputs.min())) * 255
     
